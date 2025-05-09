@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IQ Challenge Global</title>
+  <!-- Tailwind CSS (solo para prototipo) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Stripe.js -->
+  <script src="https://js.stripe.com/v3/"></script>
+  <!-- html2canvas para compartir resultados -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body class="bg-gray-100 flex flex-col items-center py-12 space-y-8">
+
+  <!-- FORMULARIO + RANKING -->
+  <div id="form-container" class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-4 text-center">IQ Challenge Global</h1>
+    <form id="start-form" class="space-y-4">
+      <div>
+        <label for="name" class="block font-medium">Name:</label>
+        <input id="name" type="text" required placeholder="Your name..." class="w-full p-2 border rounded" />
+      </div>
+      <div>
+        <label for="country" class="block font-medium">Country:</label>
+        <select id="country" required class="w-full p-2 border rounded">
+          <option value="">Select your country</option>
+          <option value="ES">🇪🇸 Spain</option>
+          <option value="US">🇺🇸 United States</option>
+          <option value="FR">🇫🇷 France</option>
+          <option value="DE">🇩🇪 Germany</option>
+          <option value="BR">🇧🇷 Brazil</option>
+          <!-- …más si quieres -->
+        </select>
+      </div>
+      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Pay €1 and Start</button>
+    </form>
+
+    <h2 class="mt-6 mb-2 text-lg font-semibold">Global Ranking</h2>
+    <div class="overflow-x-auto">
+      <table id="ranking" class="min-w-full text-sm text-left">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="px-2 py-1">#</th>
+            <th class="px-2 py-1">Name</th>
+            <th class="px-2 py-1">Country</th>
+            <th class="px-2 py-1">Pts</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR DEL TEST -->
+  <div id="test-container" class="hidden bg-white p-6 rounded-lg shadow-lg w-full max-w-md space-y-4">
+    <div id="timer" class="text-right font-mono">Time: 00:00</div>
+    <div id="question-text" class="font-semibold"></div>
+    <div id="options" class="space-y-2"></div>
+    <button id="next-btn" class="hidden bg-green-600 text-white py-2 px-4 rounded">Next</button>
+  </div>
+
+  <!-- RESULTADOS Y COMPARTIR -->
+  <div id="result-container" class="hidden bg-white p-6 rounded-lg shadow-lg w-full max-w-md text-center space-y-4">
+    <h2 class="text-2xl font-bold">Test Completed!</h2>
+    <p id="score-text" class="text-lg"></p>
+    <p id="rank-text" class="text-lg"></p>
+    <div class="flex justify-center space-x-4">
+      <button id="share-btn" class="bg-indigo-600 text-white py-2 px-4 rounded">Share Result</button>
+      <button id="home-btn"  class="bg-blue-600   text-white py-2 px-4 rounded">Back to Home</button>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
