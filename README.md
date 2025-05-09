@@ -1,0 +1,1 @@
+# iq-challenge-global
