@@ -2,9 +2,15 @@
 import { questions } from "./questions.js";
 import { db }        from "./firebaseConfig.js";
 import {
-  collection, addDoc, query, orderBy, limit, onSnapshot
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  getDocs
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import html2canvas   from "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js";
+import html2canvas from "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js";
 
 // DOM refs
 const formContainer   = document.getElementById("form-container");
@@ -42,7 +48,6 @@ const fakePlayers = [
   { name: "Chloe",     country: "CA", points: 74 },
 ];
 
-
 // Helper ISO → emoji
 function countryToFlag(cc) {
   return cc.toUpperCase()
@@ -61,7 +66,6 @@ function initRanking() {
   );
   onSnapshot(q, snap => {
     const real = snap.docs.map(d => d.data());
-    // Rellenamos hasta 10 con falsos
     const slot = Math.max(0, 10 - real.length);
     const list = real
       .concat(fakePlayers.slice(0, slot))
@@ -80,7 +84,6 @@ function initRanking() {
       rankingBody.appendChild(tr);
     });
 
-    // Si tú no estás en top10, te mostramos abajo
     if (lastPlayer && lastPlayer.rank > 10) {
       const sep = document.createElement("tr");
       sep.innerHTML = `<td colspan="4" class="text-center">…</td>`;
@@ -134,7 +137,7 @@ function selectOption(idx) {
   nextBtn.classList.remove("hidden");
 }
 
-// Siguiente
+// Next
 nextBtn.onclick = () => {
   if (selectedOption === questions[currentIndex].answer) correctCount++;
   currentIndex++; selectedOption=null;
@@ -147,7 +150,6 @@ async function finishTest() {
   testContainer.classList.add("hidden");
   const points = correctCount * 10 - elapsedSeconds;
 
-  // Guardamos en Firestore
   try {
     await addDoc(collection(db,"players"), {
       ...playerInfo,
@@ -159,18 +161,17 @@ async function finishTest() {
     console.error("FIRESTORE ERROR:", e);
   }
 
-  // Calculamos tu puesto para mostrarlo y guardarlo en sessionStorage
-  const qSnap = await getDocs(
+  // Calcula tu puesto
+  const snap = await getDocs(
     query(collection(db,"players"), orderBy("points","desc"), limit(1000))
   );
-  const list = qSnap.docs.map(d=>d.data());
-  const idx = list.findIndex(p=>
+  const list = snap.docs.map(d => d.data());
+  const idx = list.findIndex(p =>
     p.name===playerInfo.name &&
     p.country===playerInfo.country &&
     p.points===points
   ) + 1;
 
-  // Guardamos para el initRanking
   sessionStorage.setItem("lastPlayer", JSON.stringify({
     name: playerInfo.name,
     country: playerInfo.country,
@@ -203,7 +204,7 @@ homeBtn.onclick = () => {
   window.location.href = window.location.origin;
 };
 
-// Form → Checkout
+// Form → Checkout usando la nueva API
 startForm.addEventListener("submit", async e => {
   e.preventDefault();
   playerInfo = {
@@ -211,23 +212,32 @@ startForm.addEventListener("submit", async e => {
     country: document.getElementById("country").value
   };
   sessionStorage.setItem("playerInfo", JSON.stringify(playerInfo));
-  const res  = await fetch(`${window.location.origin}/create-checkout-session`, {
-    method:"POST", headers:{"Content-Type":"application/json"}
-  });
-  const json = await res.json();
-  // rompemos iframe si hay
-  if (window.top === window.self) window.location.href = json.url;
-  else window.top.location.href = json.url;
+
+  try {
+    const res  = await fetch('/api/create-checkout-session', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(playerInfo)
+    });
+    const { url } = await res.json();
+    // Rompe iframe si hay
+    if (window.top === window.self) window.location.href = url;
+    else window.top.location.href = url;
+  } catch(err) {
+    console.error("CLIENT ERROR:", err);
+    alert("Error iniciando pago: " + err.message);
+  }
 });
 
-// Al cargar la página
+// On load
 window.addEventListener("DOMContentLoaded", () => {
   initRanking();
+
   const params = new URLSearchParams(window.location.search);
   if (params.get("success")==="true") {
-    const d = sessionStorage.getItem("playerInfo");
-    if (d) {
-      playerInfo = JSON.parse(d);
+    const data = sessionStorage.getItem("playerInfo");
+    if (data) {
+      playerInfo = JSON.parse(data);
       formContainer.classList.add("hidden");
       testContainer.classList.remove("hidden");
       startTimer();
