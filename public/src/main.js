@@ -1,4 +1,5 @@
 // public/src/main.js
+
 import { questions } from "./questions.js";
 import { db }        from "./firebaseConfig.js";
 import {
@@ -10,9 +11,9 @@ import {
   onSnapshot,
   getDocs
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import html2canvas from "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js";
+import html2canvas   from "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js";
 
-// DOM refs
+// — DOM refs —
 const formContainer   = document.getElementById("form-container");
 const startForm       = document.getElementById("start-form");
 const rankingBody     = document.querySelector("#ranking tbody");
@@ -27,28 +28,29 @@ const rankText        = document.getElementById("rank-text");
 const shareBtn        = document.getElementById("share-btn");
 const homeBtn         = document.getElementById("home-btn");
 
-let currentIndex = 0,
-    correctCount = 0,
-    startTime, elapsedSeconds = 0,
-    timerInterval,
-    selectedOption = null,
-    playerInfo = {};
+let currentIndex   = 0;
+let correctCount   = 0;
+let startTime;
+let elapsedSeconds = 0;
+let timerInterval;
+let selectedOption = null;
+let playerInfo     = {};
 
-// Fake players para rellenar hasta 10
+// — Fake players para rellenar hasta 10 —
 const fakePlayers = [
-  { name: "Alex",      country: "US", points: 95 },
-  { name: "Maria",     country: "ES", points: 92 },
-  { name: "Li",        country: "CN", points: 90 },
-  { name: "Sara",      country: "FR", points: 88 },
-  { name: "Oliver",    country: "GB", points: 85 },
-  { name: "Fatima",    country: "BR", points: 83 },
-  { name: "Hiro",      country: "JP", points: 80 },
-  { name: "Elena",     country: "RU", points: 78 },
-  { name: "Carlos",    country: "MX", points: 76 },
-  { name: "Chloe",     country: "CA", points: 74 },
+  { name: "Alex",   country: "US", points: 95 },
+  { name: "Maria",  country: "ES", points: 92 },
+  { name: "Li",     country: "CN", points: 90 },
+  { name: "Sara",   country: "FR", points: 88 },
+  { name: "Oliver", country: "GB", points: 85 },
+  { name: "Fatima", country: "BR", points: 83 },
+  { name: "Hiro",   country: "JP", points: 80 },
+  { name: "Elena",  country: "RU", points: 78 },
+  { name: "Carlos", country: "MX", points: 76 },
+  { name: "Chloe",  country: "CA", points: 74 },
 ];
 
-// Helper ISO → emoji
+// — Helper ISO → emoji flag —
 function countryToFlag(cc) {
   return cc.toUpperCase()
     .split("")
@@ -56,7 +58,7 @@ function countryToFlag(cc) {
     .join("");
 }
 
-// Init ranking: top 10 + tu puesto si no está
+// — Inicializa la tabla de ranking —
 function initRanking() {
   const lastPlayer = JSON.parse(sessionStorage.getItem("lastPlayer") || "null");
   const q = query(
@@ -64,8 +66,10 @@ function initRanking() {
     orderBy("points", "desc"),
     limit(100)
   );
+
   onSnapshot(q, snap => {
     const real = snap.docs.map(d => d.data());
+    // Rellenamos hasta 10 con falsos
     const slot = Math.max(0, 10 - real.length);
     const list = real
       .concat(fakePlayers.slice(0, slot))
@@ -84,6 +88,7 @@ function initRanking() {
       rankingBody.appendChild(tr);
     });
 
+    // Si el usuario no está en top10, lo mostramos al final
     if (lastPlayer && lastPlayer.rank > 10) {
       const sep = document.createElement("tr");
       sep.innerHTML = `<td colspan="4" class="text-center">…</td>`;
@@ -102,23 +107,23 @@ function initRanking() {
   });
 }
 
-// Timer
+// — Temporizador —
 function startTimer() {
   startTime = Date.now();
   timerInterval = setInterval(() => {
     elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-    const m = String(Math.floor(elapsedSeconds / 60)).padStart(2,"0");
-    const s = String(elapsedSeconds % 60).padStart(2,"0");
+    const m = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
+    const s = String(elapsedSeconds % 60).padStart(2, "0");
     timerEl.textContent = `Time: ${m}:${s}`;
   }, 500);
 }
 
-// Mostrar pregunta
+// — Muestra una pregunta —
 function showQuestion() {
   const q = questions[currentIndex];
   questionText.textContent = q.text;
   optionsEl.innerHTML = "";
-  q.options.forEach((opt,i) => {
+  q.options.forEach((opt, i) => {
     const btn = document.createElement("button");
     btn.textContent = opt;
     btn.className = "w-full p-2 border rounded hover:bg-gray-100";
@@ -128,68 +133,78 @@ function showQuestion() {
   nextBtn.classList.add("hidden");
 }
 
-// Selección
+// — Selección de opción —
 function selectOption(idx) {
   selectedOption = idx;
-  Array.from(optionsEl.children).forEach((b,i) =>
-    b.classList.toggle("bg-blue-100", i===idx)
+  Array.from(optionsEl.children).forEach((b, i) =>
+    b.classList.toggle("bg-blue-100", i === idx)
   );
   nextBtn.classList.remove("hidden");
 }
 
-// Next
+// — Avanzar a siguiente pregunta o terminar —
 nextBtn.onclick = () => {
-  if (selectedOption === questions[currentIndex].answer) correctCount++;
-  currentIndex++; selectedOption=null;
-  currentIndex < questions.length ? showQuestion() : finishTest();
+  if (selectedOption === questions[currentIndex].answer) {
+    correctCount++;
+  }
+  currentIndex++;
+  selectedOption = null;
+  if (currentIndex < questions.length) {
+    showQuestion();
+  } else {
+    finishTest();
+  }
 };
 
-// Guardar y mostrar resultados
+// — Finalizar test: guardar en Firestore y mostrar resultado —
 async function finishTest() {
   clearInterval(timerInterval);
   testContainer.classList.add("hidden");
+
   const points = correctCount * 10 - elapsedSeconds;
 
+  // Guardar en Firestore
   try {
-    await addDoc(collection(db,"players"), {
+    await addDoc(collection(db, "players"), {
       ...playerInfo,
       points,
       time: elapsedSeconds,
       createdAt: new Date()
     });
-  } catch(e) {
+  } catch (e) {
     console.error("FIRESTORE ERROR:", e);
   }
 
-  // Calcula tu puesto
-  const snap = await getDocs(
-    query(collection(db,"players"), orderBy("points","desc"), limit(1000))
+  // Calcular tu posición:
+  const qSnap = await getDocs(
+    query(collection(db, "players"), orderBy("points", "desc"), limit(1000))
   );
-  const list = snap.docs.map(d => d.data());
+  const list = qSnap.docs.map(d => d.data());
   const idx = list.findIndex(p =>
-    p.name===playerInfo.name &&
-    p.country===playerInfo.country &&
-    p.points===points
+    p.name === playerInfo.name &&
+    p.country === playerInfo.country &&
+    p.points === points
   ) + 1;
 
+  // Guardar tu última posición en sessionStorage
   sessionStorage.setItem("lastPlayer", JSON.stringify({
-    name: playerInfo.name,
-    country: playerInfo.country,
+    name:   playerInfo.name,
+    country:playerInfo.country,
     points,
-    rank: idx
+    rank:   idx
   }));
 
   showResult(points, idx);
 }
 
-// Mostrar tu resultado
+// — Mostrar resultado en pantalla —
 function showResult(points, rank) {
   scoreText.textContent = `Score: ${points} pts (correct: ${correctCount}, time: ${elapsedSeconds}s)`;
   rankText.textContent  = `Your rank: #${rank}`;
   resultContainer.classList.remove("hidden");
 }
 
-// Compartir
+// — Compartir ráster de resultado —
 shareBtn.onclick = () => {
   html2canvas(resultContainer).then(canvas => {
     const link = document.createElement("a");
@@ -199,12 +214,12 @@ shareBtn.onclick = () => {
   });
 };
 
-// Volver al home
+// — Volver al inicio —
 homeBtn.onclick = () => {
-  window.location.href = window.location.origin;
+  window.location.href = "/";
 };
 
-// Form → Checkout usando la nueva API
+// — Submit del formulario: lanza Checkout hacia /api/create-checkout-session —
 startForm.addEventListener("submit", async e => {
   e.preventDefault();
   playerInfo = {
@@ -214,30 +229,41 @@ startForm.addEventListener("submit", async e => {
   sessionStorage.setItem("playerInfo", JSON.stringify(playerInfo));
 
   try {
-    const res  = await fetch('/api/create-checkout-session', {
-      method: "POST",
+    const res = await fetch("/api/create-checkout-session", {
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(playerInfo)
+      body:    JSON.stringify(playerInfo)
     });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || JSON.stringify(err));
+    }
+
     const { url } = await res.json();
-    // Rompe iframe si hay
-    if (window.top === window.self) window.location.href = url;
-    else window.top.location.href = url;
+    // redirigir fuera de iframe
+    if (window.top === window.self) {
+      window.location.href = url;
+    } else {
+      window.top.location.href = url;
+    }
+
   } catch(err) {
-    console.error("CLIENT ERROR:", err);
     alert("Error iniciando pago: " + err.message);
+    console.error(err);
   }
 });
 
-// On load
+// — Al cargar la página —
 window.addEventListener("DOMContentLoaded", () => {
   initRanking();
 
+  // Si venimos de un pago exitoso, arrancamos el test
   const params = new URLSearchParams(window.location.search);
-  if (params.get("success")==="true") {
-    const data = sessionStorage.getItem("playerInfo");
-    if (data) {
-      playerInfo = JSON.parse(data);
+  if (params.get("success") === "true") {
+    const d = sessionStorage.getItem("playerInfo");
+    if (d) {
+      playerInfo = JSON.parse(d);
       formContainer.classList.add("hidden");
       testContainer.classList.remove("hidden");
       startTimer();
