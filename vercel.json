@@ -7,12 +7,10 @@
     }
   ],
   "routes": [
-    // 1) Si piden "/", les devolvemos tu index.html
     {
       "src": "/",
       "dest": "/public/index.html"
     },
-    // 2) Para todo lo demás, lo mapeamos bajo "public/"
     {
       "src": "/(.*)",
       "dest": "/public/$1"
