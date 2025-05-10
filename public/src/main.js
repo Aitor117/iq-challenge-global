@@ -1,48 +1,67 @@
 // public/src/main.js
-
-// ———————————————————————————————————————————————
-// 1) GLOBE DE FONDO
-// ———————————————————————————————————————————————
-import Globe from 'https://unpkg.com/globe.gl';
-
-// Define aquí tus “conexiones” de ejemplo (lat/lng)  
-const flightPaths = [
-  { startLat: 40.4168, startLng: -3.7038, endLat: 51.5074, endLng: -0.1278 }, // Madrid→Londres
-  { startLat: 35.6895, startLng: 139.6917, endLat: 40.4168, endLng: -3.7038 },// Tokio→Madrid
-  // … añade más conexiones si quieres …
-];
-
-// Crea el canvas en el div#globe
-const globeEl = document.getElementById('globe');
-const world = Globe()(globeEl)
-  .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-  .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-  .showAtmosphere(true)
-  .backgroundColor('rgba(0,0,0,0)')
-  .lineData(flightPaths)
-  .lineColor(() => 'cyan')
-  .lineWidth(0.7)
-  .lineCurveResolution(20)
-  .lineAltitude(0.01);
-
-// Auto-rotación lenta
-world.controls().autoRotate = true;
-world.controls().autoRotateSpeed = 0.2;
-world.controls().enableZoom = false;
-
-
-
-// ———————————————————————————————————————————————
-// 2) RESTO DE TU LÓGICA (Preguntas, Firebase, Stripe…)
-// ———————————————————————————————————————————————
-import { questions } from './questions.js';
-import { db }        from './firebaseConfig.js';
+import { questions } from "./questions.js";
+import { db }        from "./firebaseConfig.js";
 import {
   collection, addDoc, query, orderBy, limit, onSnapshot, getDocs
-} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
-import html2canvas   from 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js';
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import html2canvas from "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js";
 
-// referencias DOM
+// —– GLOBE BACKGROUND —–
+const canvas = document.getElementById("globe");
+const ctx    = canvas.getContext("2d");
+let size, center, radius, angle = 0;
+
+function resizeCanvas() {
+  size = Math.min(window.innerWidth, window.innerHeight);
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  center = { x: canvas.width/2, y: canvas.height/2 };
+  radius = Math.min(canvas.width, canvas.height) * 0.6;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+function drawGlobe() {
+  angle += 0.002;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Tierra (círculo azul)
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.arc(0,0, radius, 0, 2*Math.PI);
+  ctx.fillStyle = "#0077cc";
+  ctx.fill();
+  ctx.restore();
+
+  // Líneas ficticias de conexión
+  const points = [
+    { a:0.1, b:1.2 }, { a:2.0, b:3.5 }, { a:4.1, b:5.8 },
+    { a:1.5, b:4.8 }, { a:3.2, b:0.5 }
+  ];
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.rotate(angle);
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  points.forEach(p => {
+    const x1 = radius * Math.cos(p.a);
+    const y1 = radius * Math.sin(p.a);
+    const x2 = radius * Math.cos(p.b);
+    const y2 = radius * Math.sin(p.b);
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    // curva
+    ctx.quadraticCurveTo(0,0, x2,y2);
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  requestAnimationFrame(drawGlobe);
+}
+drawGlobe();
+
+// —– DOM REFS —–
 const formContainer   = document.getElementById("form-container");
 const startForm       = document.getElementById("start-form");
 const rankingBody     = document.querySelector("#ranking tbody");
@@ -56,7 +75,9 @@ const scoreText       = document.getElementById("score-text");
 const rankText        = document.getElementById("rank-text");
 const shareBtn        = document.getElementById("share-btn");
 const homeBtn         = document.getElementById("home-btn");
+const payBtn          = document.getElementById("pay-btn");
 
+// —– VARIABLES TEST —–
 let currentIndex = 0,
     correctCount = 0,
     startTime, elapsedSeconds = 0,
@@ -64,48 +85,43 @@ let currentIndex = 0,
     selectedOption = null,
     playerInfo = {};
 
-// jugadores fake para rellenar el top10
+// —– FAKE PLAYERS —–
 const fakePlayers = [
-  { name:"Alex",   country:"US", points:95 },
-  { name:"Maria",  country:"ES", points:92 },
-  { name:"Li",     country:"CN", points:90 },
-  { name:"Sara",   country:"FR", points:88 },
-  { name:"Oliver", country:"GB", points:85 },
-  { name:"Fatima", country:"BR", points:83 },
-  { name:"Hiro",   country:"JP", points:80 },
-  { name:"Elena",  country:"RU", points:78 },
-  { name:"Carlos", country:"MX", points:76 },
-  { name:"Chloe",  country:"CA", points:74 },
+  { name:"Alex",  country:"US", points:95 },
+  { name:"Maria", country:"ES", points:92 },
+  { name:"Li",    country:"CN", points:90 },
+  { name:"Sara",  country:"FR", points:88 },
+  { name:"Oliver",country:"GB", points:85 },
+  { name:"Fatima",country:"BR", points:83 },
+  { name:"Hiro",  country:"JP", points:80 },
+  { name:"Elena", country:"RU", points:78 },
+  { name:"Carlos",country:"MX", points:76 },
+  { name:"Chloe", country:"CA", points:74 },
 ];
 
-// helper ISO → emoji
+// —– HELPERS —–
 function countryToFlag(cc){
-  return cc.toUpperCase()
-    .split("")
+  return cc.toUpperCase().split("")
     .map(c=>String.fromCodePoint(0x1F1E6 + c.charCodeAt(0)-65))
     .join("");
 }
 
-// Inicializa ranking top10 + tu puesto
+// —– RANKING —–
 function initRanking(){
-  const lastPlayer = JSON.parse(sessionStorage.getItem("lastPlayer")||"null");
-  const q = query(
-    collection(db,"players"),
-    orderBy("points","desc"),
-    limit(100)
-  );
-  onSnapshot(q, snap=>{
+  const last = JSON.parse(sessionStorage.getItem("lastPlayer")||"null");
+  const q = query(collection(db,"players"), orderBy("points","desc"), limit(1000));
+  onSnapshot(q, snap => {
     const real = snap.docs.map(d=>d.data());
-    const slot = Math.max(0,10-real.length);
+    const slot = Math.max(0,10 - real.length);
     const list = real
       .concat(fakePlayers.slice(0,slot))
-      .sort((a,b)=>b.points-a.points)
+      .sort((a,b)=>b.points - a.points)
       .slice(0,10);
 
-    rankingBody.innerHTML="";
+    rankingBody.innerHTML = "";
     list.forEach((p,i)=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML=`
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
         <td>${i+1}</td>
         <td>${p.name}</td>
         <td>${countryToFlag(p.country)}</td>
@@ -114,124 +130,111 @@ function initRanking(){
       rankingBody.appendChild(tr);
     });
 
-    if(lastPlayer && lastPlayer.rank>10){
-      const sep=document.createElement("tr");
-      sep.innerHTML=`<td colspan="4" class="text-center">…</td>`;
-      rankingBody.appendChild(sep);
-      const p=lastPlayer, tr=document.createElement("tr");
-      tr.innerHTML=`
-        <td>${p.rank}</td>
-        <td>${p.name}</td>
-        <td>${countryToFlag(p.country)}</td>
-        <td>${p.points}</td>
-      `;
-      rankingBody.appendChild(tr);
+    if(last && last.rank>10){
+      rankingBody.insertAdjacentHTML("beforeend",
+        `<tr><td colspan="4" style="text-align:center">…</td></tr>`
+      );
+      const p = last;
+      rankingBody.insertAdjacentHTML("beforeend",`
+        <tr>
+          <td>${p.rank}</td>
+          <td>${p.name}</td>
+          <td>${countryToFlag(p.country)}</td>
+          <td>${p.points}</td>
+        </tr>
+      `);
     }
   });
 }
 
-// temporizador
+// —– TIMER —–
 function startTimer(){
-  startTime=Date.now();
-  timerInterval=setInterval(()=>{
-    elapsedSeconds=Math.floor((Date.now()-startTime)/1000);
-    const m=String(Math.floor(elapsedSeconds/60)).padStart(2,"0");
-    const s=String(elapsedSeconds%60).padStart(2,"0");
-    timerEl.textContent=`Time: ${m}:${s}`;
-  },500);
+  startTime = Date.now();
+  timerInterval = setInterval(()=>{
+    elapsedSeconds = Math.floor((Date.now()-startTime)/1000);
+    const m = String(Math.floor(elapsedSeconds/60)).padStart(2,"0");
+    const s = String(elapsedSeconds%60).padStart(2,"0");
+    timerEl.textContent = `Time: ${m}:${s}`;
+  }, 500);
 }
 
-// mostrar pregunta
+// —– TEST FLOW —–
 function showQuestion(){
-  const q=questions[currentIndex];
-  questionText.textContent=q.text;
-  optionsEl.innerHTML="";
+  const q = questions[currentIndex];
+  questionText.textContent = q.text;
+  optionsEl.innerHTML = "";
   q.options.forEach((opt,i)=>{
-    const btn=document.createElement("button");
-    btn.textContent=opt;
-    btn.className="w-full p-2 border rounded hover:bg-gray-100";
-    btn.onclick=()=>selectOption(i);
-    optionsEl.appendChild(btn);
+    const b = document.createElement("button");
+    b.textContent = opt;
+    b.className = "option";
+    b.onclick = ()=>selectOption(i);
+    optionsEl.appendChild(b);
   });
   nextBtn.classList.add("hidden");
 }
 
-// seleccionar opción
-function selectOption(idx){
-  selectedOption=idx;
-  Array.from(optionsEl.children).forEach((b,i)=>
-    b.classList.toggle("bg-blue-100",i===idx)
-  );
+function selectOption(i){
+  selectedOption = i;
+  Array.from(optionsEl.children).forEach((b,j)=>{
+    b.classList.toggle("selected", i===j);
+  });
   nextBtn.classList.remove("hidden");
 }
 
-// siguiente pregunta
-nextBtn.onclick=()=>{
-  if(selectedOption===questions[currentIndex].answer) correctCount++;
-  currentIndex++; selectedOption=null;
-  currentIndex<questions.length
+nextBtn.onclick = ()=>{
+  if(selectedOption === questions[currentIndex].answer) correctCount++;
+  currentIndex++;
+  selectedOption = null;
+  currentIndex < questions.length
     ? showQuestion()
     : finishTest();
 };
 
-// terminar test
+// —– FINISH & GUARDAR —–
 async function finishTest(){
   clearInterval(timerInterval);
   testContainer.classList.add("hidden");
   const points = correctCount*10 - elapsedSeconds;
 
-  try{
-    await addDoc(collection(db,"players"), {
-      ...playerInfo,
-      points,
-      time: elapsedSeconds,
-      createdAt: new Date()
-    });
-  }catch(e){ console.error("FIRESTORE ERROR:",e); }
+  await addDoc(collection(db,"players"), {
+    ...playerInfo,
+    points,
+    time: elapsedSeconds,
+    createdAt: new Date()
+  });
 
-  const qSnap = await getDocs(
+  // calcular rank
+  const snap = await getDocs(
     query(collection(db,"players"), orderBy("points","desc"), limit(1000))
   );
-  const list = qSnap.docs.map(d=>d.data());
-  const idx = list.findIndex(p=>
+  const all = snap.docs.map(d=>d.data());
+  const idx = all.findIndex(p=>
     p.name===playerInfo.name &&
     p.country===playerInfo.country &&
     p.points===points
-  )+1;
+  ) + 1;
 
   sessionStorage.setItem("lastPlayer", JSON.stringify({
-    name:playerInfo.name,
-    country:playerInfo.country,
-    points,
-    rank:idx
+    ...playerInfo, points, rank: idx
   }));
 
-  showResult(points, idx);
-}
-
-// mostrar resultado
-function showResult(points, rank){
-  scoreText.textContent=`Score: ${points} pts (correct: ${correctCount}, time: ${elapsedSeconds}s)`;
-  rankText.textContent=`Your rank: #${rank}`;
+  scoreText.textContent = `Score: ${points} pts (correct: ${correctCount}, time: ${elapsedSeconds}s)`;
+  rankText.textContent  = `Your rank: #${idx}`;
   resultContainer.classList.remove("hidden");
 }
 
-// compartir imagen
-shareBtn.onclick=()=>{
+// —– SHARE & HOME —–
+shareBtn.onclick = ()=>{
   html2canvas(resultContainer).then(canvas=>{
-    const link=document.createElement("a");
-    link.href=canvas.toDataURL("image/png");
-    link.download=`IQ-${playerInfo.name}-${Date.now()}.png`;
-    link.click();
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL();
+    a.download = `IQ-${playerInfo.name}-${Date.now()}.png`;
+    a.click();
   });
 };
+homeBtn.onclick = ()=> window.location.href = "/";
 
-// volver al home
-homeBtn.onclick=()=>{
-  window.location.href=window.location.origin;
-};
-
-// formulario → Stripe Checkout
+// —– FORM & CHECKOUT —–
 startForm.addEventListener("submit", async e=>{
   e.preventDefault();
   playerInfo = {
@@ -239,28 +242,23 @@ startForm.addEventListener("submit", async e=>{
     country: document.getElementById("country").value
   };
   sessionStorage.setItem("playerInfo", JSON.stringify(playerInfo));
-  const res = await fetch(`${window.location.origin}/api/create-checkout-session`, {
-    method:"POST", headers:{"Content-Type":"application/json"}
+  const res  = await fetch("/api/create-checkout-session", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(playerInfo)
   });
   const { url } = await res.json();
-  if(window.top===window.self) window.location.href=url;
-  else window.top.location.href=url;
+  window.location.href = url;
 });
 
-// al cargar página
+// —– ON LOAD —–
 window.addEventListener("DOMContentLoaded", ()=>{
   initRanking();
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(location.search);
   if(params.get("success")==="true"){
-    const d=sessionStorage.getItem("playerInfo");
-    if(d){
-      playerInfo=JSON.parse(d);
-      formContainer.classList.add("hidden");
-      testContainer.classList.remove("hidden");
-      startTimer();
-      showQuestion();
-      sessionStorage.removeItem("playerInfo");
-      window.history.replaceState({}, "", window.location.pathname);
-    }
+    formContainer.classList.add("hidden");
+    testContainer.classList.remove("hidden");
+    startTimer();
+    showQuestion();
+    history.replaceState({}, "", "/");
   }
 });
