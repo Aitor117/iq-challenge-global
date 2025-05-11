@@ -1,4 +1,5 @@
 // public/src/main.js
+
 import { questions } from "./questions.js";
 import { db }        from "./firebaseConfig.js";
 import {
@@ -12,66 +13,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import html2canvas from "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js";
 
-// ——— FONDO: GLOBO GIRATORIO ———
-const canvas = document.getElementById("globe");
-const ctx    = canvas.getContext("2d");
-let center, radius, angle = 0;
-
-function resize() {
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
-  center = { x: canvas.width / 2, y: canvas.height / 2 };
-  radius = Math.min(canvas.width, canvas.height) * 0.4;
-}
-window.addEventListener("resize", resize);
-resize();
-
-function drawGlobe() {
-  angle += 0.002;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Planeta
-  ctx.save();
-  ctx.translate(center.x, center.y);
-  ctx.rotate(angle);
-  ctx.beginPath();
-  ctx.arc(0, 0, radius, 0, 2 * Math.PI);
-  ctx.fillStyle = "#0077cc";
-  ctx.fill();
-  ctx.restore();
-
-  // Vínculos animados
-  const links = [
-    { a: 0.3, b: 2.8 },
-    { a: 1.1, b: 4.2 },
-    { a: 3.7, b: 5.0 },
-    { a: 2.0, b: 0.7 },
-    { a: 4.5, b: 1.7 }
-  ];
-  ctx.save();
-  ctx.translate(center.x, center.y);
-  ctx.rotate(angle);
-  ctx.strokeStyle = "rgba(255,255,255,0.5)";
-  links.forEach(p => {
-    const x1 = radius * Math.cos(p.a);
-    const y1 = radius * Math.sin(p.a);
-    const x2 = radius * Math.cos(p.b);
-    const y2 = radius * Math.sin(p.b);
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.quadraticCurveTo(0, 0, x2, y2);
-    ctx.stroke();
-  });
-  ctx.restore();
-
-  requestAnimationFrame(drawGlobe);
-}
-drawGlobe();
-
-// ——— DOM REFS ———
+// ── DOM REFERENCES ──────────────────────────────────────────────────────────────
 const formContainer   = document.getElementById("form-container");
 const startForm       = document.getElementById("start-form");
-const rankingBody     = document.querySelector("#ranking tbody");
+const rankingBody     = document.getElementById("ranking-body");
 const testContainer   = document.getElementById("test-container");
 const resultContainer = document.getElementById("result-container");
 const timerEl         = document.getElementById("timer");
@@ -82,17 +27,19 @@ const scoreText       = document.getElementById("score-text");
 const rankText        = document.getElementById("rank-text");
 const shareBtn        = document.getElementById("share-btn");
 const homeBtn         = document.getElementById("home-btn");
+const countryInput    = document.getElementById("country");
 
-// ——— ESTADO ———
+// ── STATE ───────────────────────────────────────────────────────────────────────
 let currentIndex   = 0;
 let correctCount   = 0;
-let startTime;
+let startTime      = 0;
 let elapsedSeconds = 0;
-let timerInterval;
+let timerInterval  = null;
 let selectedOption = null;
 let playerInfo     = {};
+const countryMap   = {}; // name → ISO code
 
-// ——— JUGADORES FALSOS ———
+// ── FAKE PLAYERS FOR TOP-10 FILL ────────────────────────────────────────────────
 const fakePlayers = [
   { name: "Alex",   country: "US", points: 95 },
   { name: "Maria",  country: "ES", points: 92 },
@@ -103,10 +50,12 @@ const fakePlayers = [
   { name: "Hiro",   country: "JP", points: 80 },
   { name: "Elena",  country: "RU", points: 78 },
   { name: "Carlos", country: "MX", points: 76 },
-  { name: "Chloe",  country: "CA", points: 74 },
+  { name: "Chloe",  country: "CA", points: 74 }
 ];
 
-// ——— HELPERS ———
+// ── HELPERS ─────────────────────────────────────────────────────────────────────
+
+// Convert country ISO code to flag emoji
 function countryToFlag(cc) {
   return cc.toUpperCase()
     .split("")
@@ -114,9 +63,31 @@ function countryToFlag(cc) {
     .join("");
 }
 
-// ——— RANKING EN TIEMPO REAL ———
+// Populate country datalist by fetching from REST Countries API
+async function loadCountries() {
+  try {
+    const res  = await fetch("https://restcountries.com/v3.1/all?fields=name,cca2");
+    const data = await res.json();
+    const list = document.getElementById("country-list");
+    data
+      .map(c => ({ name: c.name.common, code: c.cca2 }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach(({ name, code }) => {
+        countryMap[name] = code;
+        const opt = document.createElement("option");
+        opt.value = name;
+        list.appendChild(opt);
+      });
+  } catch (e) {
+    console.error("Failed loading countries:", e);
+  }
+}
+
+// ── RANKING ────────────────────────────────────────────────────────────────────
+
+// Initialize live ranking from Firestore (plus fake fill)
 function initRanking() {
-  const last = JSON.parse(sessionStorage.getItem("lastPlayer") || "null");
+  const lastPlayer = JSON.parse(sessionStorage.getItem("lastPlayer") || "null");
   const q = query(
     collection(db, "players"),
     orderBy("points", "desc"),
@@ -124,9 +95,9 @@ function initRanking() {
   );
   onSnapshot(q, snap => {
     const real = snap.docs.map(d => d.data());
-    const slot = Math.max(0, 10 - real.length);
+    const need = Math.max(0, 10 - real.length);
     const list = real
-      .concat(fakePlayers.slice(0, slot))
+      .concat(fakePlayers.slice(0, need))
       .sort((a, b) => b.points - a.points)
       .slice(0, 10);
 
@@ -142,12 +113,11 @@ function initRanking() {
       rankingBody.appendChild(tr);
     });
 
-    if (last && last.rank > 10) {
+    if (lastPlayer && lastPlayer.rank > 10) {
       const sep = document.createElement("tr");
       sep.innerHTML = `<td colspan="4" class="text-center">…</td>`;
       rankingBody.appendChild(sep);
-
-      const p = last;
+      const p = lastPlayer;
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="px-2 py-1">${p.rank}</td>
@@ -160,7 +130,9 @@ function initRanking() {
   });
 }
 
-// ——— TIMER ———
+// ── TIMER & QUESTIONS ──────────────────────────────────────────────────────────
+
+// Start the countdown timer
 function startTimer() {
   startTime = Date.now();
   timerInterval = setInterval(() => {
@@ -171,7 +143,7 @@ function startTimer() {
   }, 500);
 }
 
-// ——— PREGUNTAS ———
+// Show the current question and its options
 function showQuestion() {
   const q = questions[currentIndex];
   questionText.textContent = q.text;
@@ -186,6 +158,7 @@ function showQuestion() {
   nextBtn.classList.add("hidden");
 }
 
+// Highlight selected option
 function selectOption(idx) {
   selectedOption = idx;
   Array.from(optionsEl.children).forEach((b, i) =>
@@ -194,20 +167,26 @@ function selectOption(idx) {
   nextBtn.classList.remove("hidden");
 }
 
+// Advance to next question or finish
 nextBtn.onclick = () => {
   if (selectedOption === questions[currentIndex].answer) correctCount++;
   currentIndex++;
   selectedOption = null;
-  if (currentIndex < questions.length) showQuestion();
-  else finishTest();
+  if (currentIndex < questions.length) {
+    showQuestion();
+  } else {
+    finishTest();
+  }
 };
 
-// ——— FINAL DEL TEST ———
+// ── FINISH & FIRESTORE ──────────────────────────────────────────────────────────
+
 async function finishTest() {
   clearInterval(timerInterval);
   testContainer.classList.add("hidden");
   const points = correctCount * 10 - elapsedSeconds;
 
+  // Save to Firestore
   try {
     await addDoc(collection(db, "players"), {
       ...playerInfo,
@@ -216,14 +195,15 @@ async function finishTest() {
       createdAt: new Date()
     });
   } catch (e) {
-    console.error("FIRESTORE ERROR:", e);
+    console.error("Firestore Error:", e);
   }
 
+  // Compute rank
   const snap = await getDocs(
     query(collection(db, "players"), orderBy("points", "desc"), limit(1000))
   );
   const list = snap.docs.map(d => d.data());
-  const idx  = list.findIndex(p =>
+  const idx = list.findIndex(p =>
     p.name === playerInfo.name &&
     p.country === playerInfo.country &&
     p.points === points
@@ -239,13 +219,14 @@ async function finishTest() {
   showResult(points, idx);
 }
 
+// Display result screen
 function showResult(points, rank) {
   scoreText.textContent = `Score: ${points} pts (correct: ${correctCount}, time: ${elapsedSeconds}s)`;
-  rankText.textContent  = `Your rank: #${rank}`;
+  rankText.textContent = `Your rank: #${rank}`;
   resultContainer.classList.remove("hidden");
 }
 
-// ——— COMPARTIR ———
+// Share via image
 shareBtn.onclick = () => {
   html2canvas(resultContainer).then(canvas => {
     const link = document.createElement("a");
@@ -255,35 +236,54 @@ shareBtn.onclick = () => {
   });
 };
 
-// ——— HOME ———
-homeBtn.onclick = () => window.location.href = window.location.origin;
+// Return home
+homeBtn.onclick = () => {
+  window.location.href = window.location.origin;
+};
 
-// ——— CHECKOUT ———
+// ── FORM SUBMISSION & CHECKOUT ─────────────────────────────────────────────────
+
 startForm.addEventListener("submit", async e => {
   e.preventDefault();
+  const rawCountry = countryInput.value.trim();
+  const code = countryMap[rawCountry];
+  if (!code) {
+    alert("Please select a valid country from the list.");
+    return;
+  }
   playerInfo = {
     name:    document.getElementById("name").value.trim(),
-    country: document.getElementById("country").value
+    country: code
   };
   sessionStorage.setItem("playerInfo", JSON.stringify(playerInfo));
 
-  const res  = await fetch(`/api/create-checkout-session`, {
+  // Create Stripe checkout session via your /api endpoint
+  const res  = await fetch(`${window.location.origin}/create-checkout-session`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(playerInfo)
   });
-  const json = await res.json();
-  if (window.top === window.self) window.location.href = json.url;
-  else window.top.location.href = json.url;
+  const { url } = await res.json();
+
+  // Redirect out of iframe
+  if (window.top === window.self) {
+    window.location.href = url;
+  } else {
+    window.top.location.href = url;
+  }
 });
 
-// ——— INICIALIZACIÓN ———
+// ── ON LOAD ─────────────────────────────────────────────────────────────────────
+
 window.addEventListener("DOMContentLoaded", () => {
+  loadCountries();
   initRanking();
+
   const params = new URLSearchParams(window.location.search);
   if (params.get("success") === "true") {
-    const data = sessionStorage.getItem("playerInfo");
-    if (data) {
-      playerInfo = JSON.parse(data);
+    const d = sessionStorage.getItem("playerInfo");
+    if (d) {
+      playerInfo = JSON.parse(d);
       formContainer.classList.add("hidden");
       testContainer.classList.remove("hidden");
       startTimer();
