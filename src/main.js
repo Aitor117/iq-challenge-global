@@ -199,11 +199,12 @@ startForm.addEventListener("submit", async e => {
   const name = document.getElementById("name").value;
   const country = document.getElementById("country").value;
 
-  const res = await fetch("/api/create-checkout-session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, country })
-  });
+const res = await fetch("/api/create-checkout-session", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ name, country }),
+});
+
 
   const json = await res.json();
   if (json.url) {
