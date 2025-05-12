@@ -1,21 +1,15 @@
-// public/src/firebaseConfig.js
+// src/firebaseConfig.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore  } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getFirestore } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "",
-  authDomain: "iq-challenge-global.firebaseapp.com",
-  projectId: "iq-challenge-global",
-  storageBucket: "iq-challenge-global.firebasestorage.app",
-  messagingSenderId: "473166935270",
-  appId: "1:473166935270:web:78b54de5628ad11d9fb727",
-  measurementId: "G-H53RLP3WEL"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Inicializa Firebase y exporta Firestore
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);

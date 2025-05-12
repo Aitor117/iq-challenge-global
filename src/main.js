@@ -203,17 +203,13 @@ startForm.addEventListener("submit", async e => {
   if (!playerInfo.name || !playerInfo.country) return; // both required
   sessionStorage.setItem("playerInfo", JSON.stringify(playerInfo));
   // stripe checkout
-const res = await fetch('/api/create-checkout-session', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name, country }),
+const res = await fetch("/api/create-checkout-session", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(playerInfo)
 });
 const json = await res.json();
-if (json.url) {
-  window.location.href = json.url;
-} else {
-  alert("Error: " + json.error);
-  }
+window.location.href = json.url;
 });
 
 window.addEventListener("DOMContentLoaded", () => {
