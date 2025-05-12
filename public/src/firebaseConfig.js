@@ -1,15 +1,9 @@
-// src/firebaseConfig.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+// public/src/firebaseConfig.js
+export const firebaseConfig = {
+  apiKey:            "AIzaSyCS_wUl5q3uiIPw90_JDlPD_Edan9ZxomQ",
+  authDomain:        "iq-challenge-global.firebaseapp.com",
+  projectId:         "iq-challenge-global",
+  storageBucket:     "iq-challenge-global.firebasestorage.app",
+  messagingSenderId: "473166935270",
+  appId:             "T1:473166935270:web:78b54de5628ad11d9fb727"
 };
-
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);

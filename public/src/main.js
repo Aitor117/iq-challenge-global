@@ -16,9 +16,8 @@ import { firebaseConfig } from "./firebaseConfig.js";
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Inicializamos Stripe (la clave pública debe estar en ENV de Vercel)
-// Recuerda añadir STRIPE_PUBLISHABLE_KEY como variable de entorno
-const stripe = Stripe(process.env.STRIPE_PUBLISHABLE_KEY);
+// public/src/main.js (arriba del DOMContentLoaded)
+const stripe = Stripe("pk_test_51QHTsa2NDihRJw0kAXtWxnMrgannm7KXUSglH7tzJkzAYChugXSnWM7G9Iq0InGHrGPbSDcTTDHrJPtGNKDj2B8r00NziIrYKM");
 
 window.addEventListener("DOMContentLoaded", () => {
   buildCountryAutocomplete();
