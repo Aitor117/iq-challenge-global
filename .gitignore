@@ -135,3 +135,5 @@ dist
 
 # Replit debugger
 .breakpoints
+
+.vercel
