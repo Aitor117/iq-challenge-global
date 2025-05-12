@@ -7,7 +7,7 @@ import { getFirestore  } from "https://www.gstatic.com/firebasejs/9.23.0/firebas
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCS_wUl5q3uiIPw90_JDlPD_Edan9ZxomQ",
+  apiKey: "",
   authDomain: "iq-challenge-global.firebaseapp.com",
   projectId: "iq-challenge-global",
   storageBucket: "iq-challenge-global.firebasestorage.app",

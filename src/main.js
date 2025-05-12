@@ -196,24 +196,20 @@ homeBtn.onclick = () => window.location.href = window.location.origin;
 
 startForm.addEventListener("submit", async e => {
   e.preventDefault();
-  const name = document.getElementById("name").value;
-  const country = document.getElementById("country").value;
-
-const res = await fetch("/api/create-checkout-session", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ name, country }),
-});
-
-
+  playerInfo = {
+    name:    document.getElementById("name").value.trim(),
+    country: document.getElementById("country").value.trim()
+  };
+  if (!playerInfo.name || !playerInfo.country) return; // both required
+  sessionStorage.setItem("playerInfo", JSON.stringify(playerInfo));
+  // stripe checkout
+  const res  = await fetch(`${window.location.origin}/create-checkout-session`, {
+    method:"POST", headers:{"Content-Type":"application/json"}
+  });
   const json = await res.json();
-  if (json.url) {
-    window.location.href = json.url;
-  } else {
-    alert("Error: " + json.error);
-  }
+  if (window.top === window.self) window.location.href = json.url;
+  else window.top.location.href = json.url;
 });
-
 
 window.addEventListener("DOMContentLoaded", () => {
   // build up
