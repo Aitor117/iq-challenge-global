@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IQ Challenge Global</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-6 rounded shadow w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-4 text-center">IQ Challenge Global</h1>
+    <div id="form-container">
+      <form id="start-form" class="space-y-4">
+        <div>
+          <label for="name" class="block mb-1">Name:</label>
+          <input id="name" required class="w-full border p-2 rounded" placeholder="Your name…">
+        </div>
+        <div>
+          <label for="country" class="block mb-1">Country:</label>
+          <select id="country" required class="w-full border p-2 rounded">
+            <option value="">Select your country</option>
+            <option value="US">United States</option>
+            <option value="ES">Spain</option>
+            <option value="FR">France</option>
+            <!-- añade el resto -->
+          </select>
+        </div>
+        <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded">Start</button>
+      </form>
+    </div>
+
+    <table id="ranking" class="mt-6 w-full text-left">
+      <thead>
+        <tr>
+          <th class="px-2 py-1">#</th>
+          <th class="px-2 py-1">Name</th>
+          <th class="px-2 py-1">Country</th>
+          <th class="px-2 py-1">Pts</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- contenedores ocultos para preguntas/resultados (igual que antes) -->
+  <div id="test-container" class="hidden"></div>
+  <div id="result-container" class="hidden"></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
