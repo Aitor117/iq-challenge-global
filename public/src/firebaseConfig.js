@@ -1,9 +1,11 @@
-// public/src/firebaseConfig.js
+// Esto se ejecuta en el cliente, las claves de Firebase son públicas de todas formas.
+// Solo lee desde variables de entorno inyectadas en Vercel.
+
 export const firebaseConfig = {
-  apiKey:            "AIzaSyCS_wUl5q3uiIPw90_JDlPD_Edan9ZxomQ",
-  authDomain:        "iq-challenge-global.firebaseapp.com",
-  projectId:         "iq-challenge-global",
-  storageBucket:     "iq-challenge-global.firebasestorage.app",
-  messagingSenderId: "473166935270",
-  appId:             "T1:473166935270:web:78b54de5628ad11d9fb727"
+  apiKey:              import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:          import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:           import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:       import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId:   import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:               import.meta.env.VITE_FIREBASE_APP_ID
 };
