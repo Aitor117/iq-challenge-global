@@ -34,7 +34,7 @@ window.addEventListener("DOMContentLoaded", () => {
         return alert("Por favor, completa tu nombre y país");
       }
 
-      // Guardar en localStorage para usar tras el pago
+      // Guardar en localStorage
       localStorage.setItem("lastName", name);
       localStorage.setItem("lastCountry", country);
 
@@ -67,7 +67,7 @@ window.addEventListener("DOMContentLoaded", () => {
 function startTest() {
   const app = document.createElement("div");
   app.className = "space-y-4 mt-8";
-  document.querySelector(".max-w-md").innerHTML = ""; // limpia formulario
+  document.querySelector(".max-w-md").innerHTML = ""; // limpia
 
   let current = 0;
   let score = 0;
@@ -77,22 +77,93 @@ function startTest() {
     app.innerHTML = "";
     if (current >= questions.length) {
       const totalTime = Math.round((Date.now() - startTime) / 1000);
-
       const name = localStorage.getItem("lastName") || "Anónimo";
       const country = localStorage.getItem("lastCountry") || "Desconocido";
 
-      app.innerHTML = `
+      const resultDiv = document.createElement("div");
+      resultDiv.innerHTML = `
         <h2 class="text-lg font-bold">Resultado Final</h2>
         <p>Has acertado ${score} de ${questions.length} preguntas.</p>
         <p>Tiempo total: ${totalTime} segundos.</p>
+        <p class="italic text-gray-500">Guardando resultado...</p>
       `;
+      app.appendChild(resultDiv);
 
-      addDoc(collection(db, "players"), {
+      const playerData = {
         name,
         country,
         score,
         time: totalTime,
         timestamp: serverTimestamp()
+      };
+
+      addDoc(collection(db, "players"), playerData).then(async () => {
+        const q = query(
+          collection(db, "players"),
+          orderBy("score", "desc"),
+          orderBy("time", "asc")
+        );
+        const snap = await getDocs(q);
+        const players = snap.docs.map(doc => doc.data());
+        const userIndex = players.findIndex(
+          p => p.name === name && p.country === country && p.score === score && p.time === totalTime
+        );
+
+        const table = document.createElement("table");
+        table.className = "min-w-full divide-y divide-gray-200 mt-6";
+        table.innerHTML = `
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">#</th>
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Nombre</th>
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">País</th>
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Ptos</th>
+            </tr>
+          </thead>
+          <tbody id="ranking-body" class="bg-white divide-y divide-gray-200"></tbody>
+        `;
+
+        const tbody = table.querySelector("#ranking-body");
+
+        players.slice(0, 10).forEach((p, i) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="px-3 py-2 text-center">${i + 1}</td>
+            <td class="px-3 py-2">${p.name}</td>
+            <td class="px-3 py-2">${p.country}</td>
+            <td class="px-3 py-2 text-center">${p.score}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        if (userIndex >= 10) {
+          const separator = document.createElement("tr");
+          separator.innerHTML = `<td colspan="4" class="text-center py-2 text-gray-400 border-t">...</td>`;
+          tbody.appendChild(separator);
+
+          const user = players[userIndex];
+          const tr = document.createElement("tr");
+          tr.className = "bg-yellow-50 font-semibold";
+          tr.innerHTML = `
+            <td class="px-3 py-2 text-center">${userIndex + 1}</td>
+            <td class="px-3 py-2">${user.name}</td>
+            <td class="px-3 py-2">${user.country}</td>
+            <td class="px-3 py-2 text-center">${user.score}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+
+        app.appendChild(table);
+
+        const restartBtn = document.createElement("button");
+        restartBtn.textContent = "Volver al inicio";
+        restartBtn.className = "mt-6 w-full bg-gray-200 text-gray-700 py-2 rounded hover:bg-gray-300";
+        restartBtn.onclick = () => {
+          localStorage.removeItem("lastName");
+          localStorage.removeItem("lastCountry");
+          window.location.href = "/";
+        };
+        app.appendChild(restartBtn);
       });
 
       return;
