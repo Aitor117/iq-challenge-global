@@ -28,8 +28,8 @@ window.addEventListener("DOMContentLoaded", () => {
     .addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const name = document.getElementById("name").value.trim();
-      const country = document.getElementById("country").value.trim();
+      const name = document.getElementById("name").value.trim();  
+      const country = document.getElementById("country").value;
       if (!name || !country) {
         return alert("Please fill in both fields");
       }
