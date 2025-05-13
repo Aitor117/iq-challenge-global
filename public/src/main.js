@@ -1,4 +1,4 @@
-// main.js
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import {
   getFirestore,
@@ -9,18 +9,14 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
-// Tu configuración de Firebase (sin exponerla aquí; se inyecta con .env en la build)
 import { firebaseConfig } from "./firebaseConfig.js";
 
-// Inicializamos Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// public/src/main.js (arriba del DOMContentLoaded)
 const stripe = Stripe("pk_test_51QHTsa2NDihRJw0kAXtWxnMrgannm7KXUSglH7tzJkzAYChugXSnWM7G9Iq0InGHrGPbSDcTTDHrJPtGNKDj2B8r00NziIrYKM");
 
 window.addEventListener("DOMContentLoaded", () => {
-  buildCountryAutocomplete();
   loadRanking();
 
   document
@@ -28,23 +24,31 @@ window.addEventListener("DOMContentLoaded", () => {
     .addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const name = document.getElementById("name").value.trim();  
+      const name = document.getElementById("name").value.trim();
       const country = document.getElementById("country").value;
+
       if (!name || !country) {
-        return alert("Please fill in both fields");
+        return alert("Por favor, completa tu nombre y país");
       }
 
-      // Llamada a tu función serverless
-      const res = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, country }),
-      });
-      const json = await res.json();
-      if (json.url) {
-        window.location = json.url;
-      } else {
-        alert("Error: " + (json.error || "unknown"));
+      try {
+        const res = await fetch("/api/create-checkout-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, country }),
+        });
+
+        const json = await res.json();
+
+        if (json.url) {
+          window.location.href = json.url;
+        } else {
+          console.error("Stripe error:", json);
+          alert("Error al iniciar el pago: " + (json.error || "desconocido"));
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        alert("Error al conectar con el servidor.");
       }
     });
 });
@@ -57,6 +61,7 @@ async function loadRanking() {
   );
   const snap = await getDocs(q);
   const tbody = document.getElementById("ranking-body");
+  tbody.innerHTML = "";
   snap.forEach((doc, i) => {
     const { name, country, score } = doc.data();
     const tr = document.createElement("tr");
@@ -67,18 +72,5 @@ async function loadRanking() {
       <td class="px-3 py-2">${score}</td>
     `;
     tbody.appendChild(tr);
-  });
-}
-
-function buildCountryAutocomplete() {
-  // Aquí puedes pegar la lista de todos los países en inglés
-  const countries = [
-    "Afghanistan", "Albania", "Algeria", /* ... etc ... */ "Zimbabwe"
-  ];
-  const dl = document.getElementById("countries");
-  countries.forEach((c) => {
-    const o = document.createElement("option");
-    o.value = c;
-    dl.appendChild(o);
   });
 }
