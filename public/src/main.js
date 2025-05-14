@@ -1,4 +1,3 @@
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import {
   getFirestore,
@@ -80,7 +79,7 @@ function startTest() {
       const resultDiv = document.createElement("div");
       resultDiv.innerHTML = `
         <h2 class="text-lg font-bold">Final Result</h2>
-        <p>You got ${score} out of ${questions.length} questions right.</p>
+        <p>You got ${score} out of ${questions.length} questions correct.</p>
         <p>Total time: ${totalTime} seconds.</p>
       `;
       app.appendChild(resultDiv);

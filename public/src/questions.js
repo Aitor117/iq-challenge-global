@@ -2,7 +2,7 @@
 export const questions = [
   {
     id: 1,
-    text: "What is the next number in the sequence? 2, 4, 8, 16, …",
+    text: "What is the next number in the sequence? 2, 4, 8, 16, ...",
     options: ["18", "24", "32", "20"],
     answer: 2
   },
@@ -20,13 +20,13 @@ export const questions = [
   },
   {
     id: 4,
-    text: "What is the next number in the Fibonacci sequence? 1, 1, 2, 3, 5, 8, …",
+    text: "What is the next number in the Fibonacci sequence? 1, 1, 2, 3, 5, 8, ...",
     options: ["12", "13", "14", "15"],
     answer: 1
   },
   {
     id: 5,
-    text: "Which letter comes next: A, C, E, G, …",
+    text: "Which letter comes next: A, C, E, G, ...",
     options: ["I", "H", "J", "K"],
     answer: 0
   },
@@ -44,7 +44,7 @@ export const questions = [
   },
   {
     id: 8,
-    text: "Which letter completes the series? Z, X, V, T, …",
+    text: "Which letter completes the series? Z, X, V, T, ...",
     options: ["R", "S", "U", "Q"],
     answer: 0
   },
