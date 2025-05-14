@@ -65,60 +65,74 @@ function startTest() {
   const app = document.createElement("div");
   app.className = "space-y-4 mt-8";
 
+  // Add progress and timer display
+  const statusBar = document.createElement("div");
+  statusBar.className = "flex justify-between items-center mb-4 text-gray-600";
+  statusBar.innerHTML = `
+    <div class="progress">Question: <span id="currentQuestion">1</span>/${questions.length}</div>
+    <div class="timer">Time: <span id="timer">00:00</span></div>
+  `;
+  container.appendChild(statusBar);
+
   let current = 0;
   let score = 0;
   const startTime = Date.now();
 
+  // Timer function
+  const updateTimer = () => {
+    const timeElapsed = Math.floor((Date.now() - startTime) / 1000);
+    const minutes = Math.floor(timeElapsed / 60);
+    const seconds = timeElapsed % 60;
+    document.getElementById('timer').textContent = 
+      `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const timerInterval = setInterval(updateTimer, 1000);
+
   const renderQuestion = () => {
-    app.innerHTML = "";
     if (current >= questions.length) {
-      const totalTime = Math.round((Date.now() - startTime) / 1000);
-      const name = localStorage.getItem("lastName") || "Anonymous";
-      const country = localStorage.getItem("lastCountry") || "Unknown";
+      clearInterval(timerInterval);
+      const totalTime = Math.floor((Date.now() - startTime) / 1000);
+      const minutes = Math.floor(totalTime / 60);
+      const seconds = totalTime % 60;
 
       const resultDiv = document.createElement("div");
+      resultDiv.className = "text-center p-6 bg-gray-50 rounded-lg";
       resultDiv.innerHTML = `
-        <h2 class="text-lg font-bold">Final Result</h2>
-        <p>You got ${score} out of ${questions.length} questions correct.</p>
-        <p>Total time: ${totalTime} seconds.</p>
+        <h2 class="text-2xl font-bold mb-4">Test Completed!</h2>
+        <p class="text-lg mb-2">You got ${score} out of ${questions.length} questions correct.</p>
+        <p class="text-md text-gray-600">Total time: ${minutes}m ${seconds}s</p>
+        <button id="restartBtn" class="mt-6 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          Try Again
+        </button>
       `;
+      app.innerHTML = '';
       app.appendChild(resultDiv);
-
-      addDoc(collection(db, "players"), {
-        name,
-        country,
-        score,
-        time: totalTime,
-        timestamp: serverTimestamp()
-      });
-
-      const restartBtn = document.createElement("button");
-      restartBtn.textContent = "Back to home";
-      restartBtn.className = "mt-6 w-full bg-gray-200 text-gray-700 py-2 rounded hover:bg-gray-300";
-      restartBtn.onclick = () => {
-        localStorage.removeItem("lastName");
-        localStorage.removeItem("lastCountry");
-        window.location.href = "/";
-      };
-      app.appendChild(restartBtn);
-
-      container.appendChild(app);
       return;
     }
 
     const q = questions[current];
+    document.getElementById('currentQuestion').textContent = current + 1;
+    
     const form = document.createElement("form");
-    form.className = "space-y-2";
+    form.className = "space-y-4";
     form.innerHTML = `
-      <h2 class="text-lg font-semibold">${q.text}</h2>
+      <h2 class="text-lg font-semibold mb-4">
+        Question ${current + 1} of ${questions.length}
+        <hr class="mt-2 border-gray-200">
+      </h2>
+      <p class="mb-4">${q.text}</p>
       ${q.options.map((opt, i) => `
-        <label class="block">
+        <label class="block p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
           <input type="radio" name="answer" value="${i}" class="mr-2" />
           ${opt}
         </label>
       `).join("")}
-      <button type="submit" class="mt-4 w-full py-2 bg-blue-600 text-white rounded">Next</button>
+      <button type="submit" class="mt-6 w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        ${current === questions.length - 1 ? 'Finish' : 'Next'}
+      </button>
     `;
+
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const answer = form.answer.value;
@@ -128,6 +142,7 @@ function startTest() {
       renderQuestion();
     });
 
+    app.innerHTML = '';
     app.appendChild(form);
     container.appendChild(app);
   };
