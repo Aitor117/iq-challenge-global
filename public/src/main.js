@@ -89,12 +89,27 @@ function startTest() {
 
   const timerInterval = setInterval(updateTimer, 1000);
 
-  const renderQuestion = () => {
+  const renderQuestion = async () => {
     if (current >= questions.length) {
       clearInterval(timerInterval);
       const totalTime = Math.floor((Date.now() - startTime) / 1000);
       const minutes = Math.floor(totalTime / 60);
       const seconds = totalTime % 60;
+
+      // Save score to Firebase
+      const playerData = {
+        name: localStorage.getItem("lastName"),
+        country: localStorage.getItem("lastCountry"),
+        score: score,
+        time: totalTime,
+        timestamp: serverTimestamp()
+      };
+
+      try {
+        await addDoc(collection(db, "players"), playerData);
+      } catch (error) {
+        console.error("Error saving score:", error);
+      }
 
       const resultDiv = document.createElement("div");
       resultDiv.className = "text-center p-6 bg-gray-50 rounded-lg";
@@ -102,10 +117,15 @@ function startTest() {
         <h2 class="text-2xl font-bold mb-4">Test Completed!</h2>
         <p class="text-lg mb-2">You got ${score} out of ${questions.length} questions correct.</p>
         <p class="text-md text-gray-600">Total time: ${minutes}m ${seconds}s</p>
-        <button id="restartBtn" class="mt-6 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-          Try Again
+        <button id="homeBtn" class="mt-6 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          Back to Home
         </button>
       `;
+
+      resultDiv.querySelector("#homeBtn").addEventListener("click", () => {
+        window.location.href = "/";
+      });
+
       app.innerHTML = '';
       app.appendChild(resultDiv);
       return;
@@ -164,16 +184,16 @@ async function loadRanking() {
   const players = snap.docs.map(doc => doc.data());
 
   const fallbackBots = [
-    { name: "Dr. Elias", country: "Germany", score: 49, time: 60 },
-    { name: "Prof. Claire", country: "France", score: 47, time: 60 },
-    { name: "Isaac K.", country: "USA", score: 45, time: 60 },
-    { name: "Yuki Sato", country: "Japan", score: 44, time: 60 },
-    { name: "Ahmed Z.", country: "Egypt", score: 43, time: 60 },
-    { name: "Lucia V.", country: "Spain", score: 42, time: 60 },
-    { name: "Ravi P.", country: "India", score: 41, time: 60 },
-    { name: "Sophie M.", country: "Canada", score: 40, time: 60 },
-    { name: "Lea H.", country: "Austria", score: 39, time: 60 },
-    { name: "Carlos B.", country: "Mexico", score: 38, time: 60 }
+    { name: "Dr. Watson", country: "UK", score: 48, time: 1800 },
+    { name: "Prof. Chen", country: "China", score: 47, time: 1850 },
+    { name: "Dr. Silva", country: "Brazil", score: 46, time: 1900 },
+    { name: "Prof. Schmidt", country: "Germany", score: 45, time: 1950 },
+    { name: "Dr. Dubois", country: "France", score: 44, time: 2000 },
+    { name: "Prof. Tanaka", country: "Japan", score: 43, time: 2050 },
+    { name: "Dr. Patel", country: "India", score: 42, time: 2100 },
+    { name: "Prof. García", country: "Spain", score: 41, time: 2150 },
+    { name: "Dr. Miller", country: "USA", score: 40, time: 2200 },
+    { name: "Prof. Kim", country: "South Korea", score: 39, time: 2250 }
   ];
 
   const top10 = [...players.slice(0, 10)];
@@ -182,17 +202,27 @@ async function loadRanking() {
     top10.push(...fallbackBots.slice(0, missing));
   }
 
+  // Render top 10
   top10.forEach((p, i) => {
     const tr = document.createElement("tr");
+    tr.className = "hover:bg-gray-50";
     tr.innerHTML = `
-      <td class="px-3 py-2 text-center">${i + 1}</td>
-      <td class="px-3 py-2">${p.name}</td>
+      <td class="px-3 py-2 text-center font-medium">${i + 1}</td>
+      <td class="px-3 py-2">
+        <div class="flex items-center">
+          <span>${p.name}</span>
+        </div>
+      </td>
       <td class="px-3 py-2">${p.country}</td>
       <td class="px-3 py-2 text-center">${p.score}</td>
+      <td class="px-3 py-2 text-center text-gray-600">
+        ${Math.floor(p.time / 60)}:${(p.time % 60).toString().padStart(2, '0')}
+      </td>
     `;
     tbody.appendChild(tr);
   });
 
+  // Show current user's position if not in top 10
   const currentName = localStorage.getItem("lastName");
   const currentCountry = localStorage.getItem("lastCountry");
   const currentPlayerIndex = players.findIndex(
@@ -201,17 +231,31 @@ async function loadRanking() {
 
   if (currentPlayerIndex >= 10) {
     const user = players[currentPlayerIndex];
+    
+    // Add separator
     const separator = document.createElement("tr");
-    separator.innerHTML = `<td colspan="4" class="text-center py-2 text-gray-400 border-t">...</td>`;
+    separator.innerHTML = `
+      <td colspan="5" class="text-center py-2 text-gray-400 border-t border-b">
+        • • •
+      </td>
+    `;
     tbody.appendChild(separator);
 
+    // Add user row
     const tr = document.createElement("tr");
     tr.className = "bg-yellow-50 font-semibold";
     tr.innerHTML = `
       <td class="px-3 py-2 text-center">${currentPlayerIndex + 1}</td>
-      <td class="px-3 py-2">${user.name}</td>
+      <td class="px-3 py-2">
+        <div class="flex items-center">
+          <span>${user.name}</span>
+        </div>
+      </td>
       <td class="px-3 py-2">${user.country}</td>
       <td class="px-3 py-2 text-center">${user.score}</td>
+      <td class="px-3 py-2 text-center text-gray-600">
+        ${Math.floor(user.time / 60)}:${(user.time % 60).toString().padStart(2, '0')}
+      </td>
     `;
     tbody.appendChild(tr);
   }
