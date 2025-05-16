@@ -1,5 +1,4 @@
-
-.<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -59,8 +58,8 @@
       });
     }
 
-    window.addEventListener("DOMContentLoaded", () => {
-      loadRanking();
+    window.addEventListener('load', function() {
+      loadRanking().catch(console.error);
     });
   </script>
 

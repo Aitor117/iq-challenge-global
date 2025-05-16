@@ -106,7 +106,9 @@ function startTest() {
       };
 
       try {
-        await addDoc(collection(db, "players"), playerData);
+        // Change collection name from "players" to "ranking"
+        await addDoc(collection(db, "ranking"), playerData);
+        console.log("Score saved successfully");
       } catch (error) {
         console.error("Error saving score:", error);
       }
@@ -171,92 +173,130 @@ function startTest() {
 }
 
 async function loadRanking() {
-  const q = query(
-    collection(db, "players"),
-    orderBy("score", "desc"),
-    orderBy("time", "asc")
-  );
-  const snap = await getDocs(q);
-  const tbody = document.getElementById("ranking-body");
-  if (!tbody) return;
-
-  tbody.innerHTML = "";
-  const players = snap.docs.map(doc => doc.data());
-
-  const fallbackBots = [
-    { name: "Dr. Watson", country: "UK", score: 48, time: 1800 },
-    { name: "Prof. Chen", country: "China", score: 47, time: 1850 },
-    { name: "Dr. Silva", country: "Brazil", score: 46, time: 1900 },
-    { name: "Prof. Schmidt", country: "Germany", score: 45, time: 1950 },
-    { name: "Dr. Dubois", country: "France", score: 44, time: 2000 },
-    { name: "Prof. Tanaka", country: "Japan", score: 43, time: 2050 },
-    { name: "Dr. Patel", country: "India", score: 42, time: 2100 },
-    { name: "Prof. García", country: "Spain", score: 41, time: 2150 },
-    { name: "Dr. Miller", country: "USA", score: 40, time: 2200 },
-    { name: "Prof. Kim", country: "South Korea", score: 39, time: 2250 }
-  ];
-
-  const top10 = [...players.slice(0, 10)];
-  if (top10.length < 10) {
-    const missing = 10 - top10.length;
-    top10.push(...fallbackBots.slice(0, missing));
-  }
-
-  // Render top 10
-  top10.forEach((p, i) => {
-    const tr = document.createElement("tr");
-    tr.className = "hover:bg-gray-50";
-    tr.innerHTML = `
-      <td class="px-3 py-2 text-center font-medium">${i + 1}</td>
-      <td class="px-3 py-2">
-        <div class="flex items-center">
-          <span>${p.name}</span>
-        </div>
-      </td>
-      <td class="px-3 py-2">${p.country}</td>
-      <td class="px-3 py-2 text-center">${p.score}</td>
-      <td class="px-3 py-2 text-center text-gray-600">
-        ${Math.floor(p.time / 60)}:${(p.time % 60).toString().padStart(2, '0')}
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  // Show current user's position if not in top 10
-  const currentName = localStorage.getItem("lastName");
-  const currentCountry = localStorage.getItem("lastCountry");
-  const currentPlayerIndex = players.findIndex(
-    p => p.name === currentName && p.country === currentCountry
-  );
-
-  if (currentPlayerIndex >= 10) {
-    const user = players[currentPlayerIndex];
+  try {
+    console.log("Loading ranking...");
     
-    // Add separator
-    const separator = document.createElement("tr");
-    separator.innerHTML = `
-      <td colspan="5" class="text-center py-2 text-gray-400 border-t border-b">
-        • • •
-      </td>
-    `;
-    tbody.appendChild(separator);
+    // Query real players with proper collection name
+    const q = query(
+      collection(db, "ranking"),
+      orderBy("score", "desc"),
+      orderBy("time", "asc"),
+      limit(50) // Get more results to find user's position
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const tbody = document.getElementById("ranking-body");
+    if (!tbody) return;
 
-    // Add user row
-    const tr = document.createElement("tr");
-    tr.className = "bg-yellow-50 font-semibold";
-    tr.innerHTML = `
-      <td class="px-3 py-2 text-center">${currentPlayerIndex + 1}</td>
-      <td class="px-3 py-2">
-        <div class="flex items-center">
-          <span>${user.name}</span>
-        </div>
-      </td>
-      <td class="px-3 py-2">${user.country}</td>
-      <td class="px-3 py-2 text-center">${user.score}</td>
-      <td class="px-3 py-2 text-center text-gray-600">
-        ${Math.floor(user.time / 60)}:${(user.time % 60).toString().padStart(2, '0')}
-      </td>
-    `;
-    tbody.appendChild(tr);
+    tbody.innerHTML = "";
+    
+    // Convert snapshot to array
+    const players = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    console.log("Total players:", players.length);
+
+    // Get current user info
+    const currentName = localStorage.getItem("lastName");
+    const currentCountry = localStorage.getItem("lastCountry");
+
+    // Create array for display
+    let displayRows = [];
+
+    // Always show top 10
+    const topPlayers = players.slice(0, 10);
+    
+    // Add bot players if needed
+    if (topPlayers.length < 10) {
+      const botsNeeded = 10 - topPlayers.length;
+      const bots = [
+        { name: "Dr. Watson", country: "United Kingdom", score: 48, time: 1800 },
+        { name: "Prof. Chen", country: "China", score: 47, time: 1850 },
+        { name: "Dr. Silva", country: "Brazil", score: 46, time: 1900 },
+        { name: "Prof. Schmidt", country: "Germany", score: 45, time: 1950 },
+        { name: "Dr. Dubois", country: "France", score: 44, time: 2000 },
+        { name: "Prof. Tanaka", country: "Japan", score: 43, time: 2050 },
+        { name: "Dr. Patel", country: "India", score: 42, time: 2100 },
+        { name: "Prof. García", country: "Spain", score: 41, time: 2150 },
+        { name: "Dr. Miller", country: "USA", score: 40, time: 2200 },
+        { name: "Prof. Kim", country: "South Korea", score: 39, time: 2250 }
+      ];
+      
+      displayRows = [...topPlayers, ...bots.slice(0, botsNeeded)];
+    } else {
+      displayRows = topPlayers;
+    }
+
+    // Render top rows
+    displayRows.forEach((player, index) => {
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-gray-50";
+      if (player.name === currentName && player.country === currentCountry) {
+        tr.className += " bg-yellow-50 font-semibold";
+      }
+      tr.innerHTML = `
+        <td class="px-3 py-2 text-center">${index + 1}</td>
+        <td class="px-3 py-2">
+          <div class="flex items-center gap-2">
+            <span>${player.name}</span>
+          </div>
+        </td>
+        <td class="px-3 py-2">${player.country}</td>
+        <td class="px-3 py-2 text-center">${player.score}</td>
+        <td class="px-3 py-2 text-center text-gray-600">
+          ${Math.floor(player.time / 60)}:${(player.time % 60).toString().padStart(2, '0')}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Find current user's position if not in top 10
+    const userPosition = players.findIndex(p => 
+      p.name === currentName && p.country === currentCountry
+    );
+
+    if (userPosition >= 10) {
+      // Add separator
+      const separator = document.createElement("tr");
+      separator.innerHTML = `
+        <td colspan="5" class="text-center py-2 text-gray-400 border-t border-b">
+          • • •
+        </td>
+      `;
+      tbody.appendChild(separator);
+
+      // Add user's row
+      const userRow = document.createElement("tr");
+      userRow.className = "bg-yellow-50 font-semibold";
+      userRow.innerHTML = `
+        <td class="px-3 py-2 text-center">${userPosition + 1}</td>
+        <td class="px-3 py-2">
+          <div class="flex items-center gap-2">
+            <span>${currentName}</span>
+          </div>
+        </td>
+        <td class="px-3 py-2">${currentCountry}</td>
+        <td class="px-3 py-2 text-center">${players[userPosition].score}</td>
+        <td class="px-3 py-2 text-center text-gray-600">
+          ${Math.floor(players[userPosition].time / 60)}:${(players[userPosition].time % 60).toString().padStart(2, '0')}
+        </td>
+      `;
+      tbody.appendChild(userRow);
+    }
+
+  } catch (error) {
+    console.error("Error loading ranking:", error);
+    const tbody = document.getElementById("ranking-body");
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="px-3 py-2 text-center text-red-500">
+            Error loading rankings. Please try again later.
+          </td>
+        </tr>
+      `;
+    }
   }
 }
