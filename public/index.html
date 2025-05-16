@@ -38,24 +38,123 @@
     const db = getFirestore(app);
 
     async function loadRanking() {
-      const q = query(collection(db, "ranking"), orderBy("score", "desc"), limit(10));
-      const querySnapshot = await getDocs(q);
-      const tbody = document.querySelector("#ranking-body");
-      tbody.innerHTML = "";
+      try {
+        // Query real players
+        const q = query(collection(db, "ranking"), orderBy("score", "desc"), orderBy("time", "asc"));
+        const querySnapshot = await getDocs(q);
+        const tbody = document.querySelector("#ranking-body");
+        tbody.innerHTML = "";
 
-      let i = 1;
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td class="px-4 py-2 text-center">${i++}</td>
-          <td class="px-4 py-2">${data.name}</td>
-          <td class="px-4 py-2">${data.country}</td>
-          <td class="px-4 py-2 text-center">${data.score}</td>
-          <td class="px-4 py-2 text-center">${data.time}</td>
+        // Get real players
+        const realPlayers = querySnapshot.docs.map(doc => doc.data());
+
+        // Define simulated top players with high but not perfect scores
+        const simulatedTopPlayers = [
+          { name: "Alexander Thompson", country: "United Kingdom", score: 47, time: 1832 },
+          { name: "Wei Chen", country: "China", score: 46, time: 1923 },
+          { name: "Isabella Santos", country: "Brazil", score: 45, time: 2154 },
+          { name: "Markus Weber", country: "Germany", score: 44, time: 2012 },
+          { name: "Sophie Dubois", country: "France", score: 43, time: 2245 },
+          { name: "Hiroshi Tanaka", country: "Japan", score: 42, time: 1978 },
+          { name: "Priya Patel", country: "India", score: 41, time: 2167 },
+          { name: "Carmen García", country: "Spain", score: 40, time: 2089 },
+          { name: "James Miller", country: "USA", score: 39, time: 2198 },
+          { name: "Min-ji Kim", country: "South Korea", score: 38, time: 2321 }
+        ];
+
+        // Combine and sort all players
+        let allPlayers = [...realPlayers, ...simulatedTopPlayers];
+        allPlayers.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return a.time - b.time;
+        });
+
+        // Take top 10 unique players
+        let displayedPlayers = [];
+        let usedNames = new Set();
+        
+        for (let player of allPlayers) {
+          if (!usedNames.has(player.name)) {
+            displayedPlayers.push(player);
+            usedNames.add(player.name);
+            if (displayedPlayers.length === 10) break;
+          }
+        }
+
+        // Format time function
+        const formatTime = (seconds) => {
+          const hours = Math.floor(seconds / 3600);
+          const minutes = Math.floor((seconds % 3600) / 60);
+          const secs = seconds % 60;
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        };
+
+        // Display top 10
+        displayedPlayers.forEach((player, index) => {
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-gray-50";
+          
+          // Highlight current user
+          const isCurrentUser = player.name === localStorage.getItem("lastName") &&
+                              player.country === localStorage.getItem("lastCountry");
+          
+          if (isCurrentUser) {
+            tr.className += " bg-yellow-50 font-semibold";
+          }
+
+          tr.innerHTML = `
+            <td class="px-3 py-2 text-center">${index + 1}</td>
+            <td class="px-3 py-2">${player.name}</td>
+            <td class="px-3 py-2">${player.country}</td>
+            <td class="px-3 py-2 text-center">${player.score}</td>
+            <td class="px-3 py-2 text-center text-gray-600">${formatTime(player.time)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // Show current user's position if not in top 10
+        const currentName = localStorage.getItem("lastName");
+        const currentCountry = localStorage.getItem("lastCountry");
+        
+        if (currentName && currentCountry) {
+          const userPosition = allPlayers.findIndex(p => 
+            p.name === currentName && p.country === currentCountry
+          );
+
+          if (userPosition >= 10) {
+            const separator = document.createElement("tr");
+            separator.innerHTML = `
+              <td colspan="5" class="text-center py-2 text-gray-400 border-t border-b">
+                • • •
+              </td>
+            `;
+            tbody.appendChild(separator);
+
+            const userPlayer = allPlayers[userPosition];
+            const userRow = document.createElement("tr");
+            userRow.className = "bg-yellow-50 font-semibold";
+            userRow.innerHTML = `
+              <td class="px-3 py-2 text-center">${userPosition + 1}</td>
+              <td class="px-3 py-2">${userPlayer.name}</td>
+              <td class="px-3 py-2">${userPlayer.country}</td>
+              <td class="px-3 py-2 text-center">${userPlayer.score}</td>
+              <td class="px-3 py-2 text-center text-gray-600">${formatTime(userPlayer.time)}</td>
+            `;
+            tbody.appendChild(userRow);
+          }
+        }
+
+      } catch (error) {
+        console.error("Error loading ranking:", error);
+        const tbody = document.querySelector("#ranking-body");
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="px-3 py-2 text-center text-red-500">
+              Error loading rankings. Please try again later.
+            </td>
+          </tr>
         `;
-        tbody.appendChild(tr);
-      });
+      }
     }
 
     window.addEventListener('load', function() {
