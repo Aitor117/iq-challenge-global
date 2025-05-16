@@ -176,12 +176,12 @@ async function loadRanking() {
   try {
     console.log("Loading ranking...");
     
-    // Query real players with proper collection name
+    // Query real players
     const q = query(
       collection(db, "ranking"),
       orderBy("score", "desc"),
       orderBy("time", "asc"),
-      limit(50) // Get more results to find user's position
+      limit(50)
     );
     
     const querySnapshot = await getDocs(q);
@@ -196,69 +196,85 @@ async function loadRanking() {
       ...doc.data()
     }));
 
-    console.log("Total players:", players.length);
+    // Bots with decreasing scores and increasing times
+    const simulatedUsers = [
+      { name: "Alexander Thompson", country: "United Kingdom", score: 48, time: 1832 },
+      { name: "Wei Chen", country: "China", score: 47, time: 1923 },
+      { name: "Isabella Santos", country: "Brazil", score: 46, time: 2154 },
+      { name: "Markus Weber", country: "Germany", score: 45, time: 2012 },
+      { name: "Sophie Dubois", country: "France", score: 44, time: 2245 },
+      { name: "Hiroshi Tanaka", country: "Japan", score: 43, time: 1978 },
+      { name: "Priya Patel", country: "India", score: 42, time: 2167 },
+      { name: "Carmen García", country: "Spain", score: 41, time: 2089 },
+      { name: "James Miller", country: "USA", score: 40, time: 2198 },
+      { name: "Min-ji Kim", country: "South Korea", score: 39, time: 2321 },
+      { name: "Lucas Silva", country: "Portugal", score: 38, time: 2156 },
+      { name: "Emma Andersson", country: "Sweden", score: 37, time: 2289 },
+      { name: "Marco Rossi", country: "Italy", score: 36, time: 2432 },
+      { name: "Anna Kowalski", country: "Poland", score: 35, time: 2345 },
+      { name: "Yuki Sato", country: "Japan", score: 34, time: 2167 }
+    ];
 
-    // Get current user info
-    const currentName = localStorage.getItem("lastName");
-    const currentCountry = localStorage.getItem("lastCountry");
-
-    // Create array for display
-    let displayRows = [];
-
-    // Always show top 10
-    const topPlayers = players.slice(0, 10);
-    
-    // Add bot players if needed
-    if (topPlayers.length < 10) {
-      const botsNeeded = 10 - topPlayers.length;
-      const bots = [
-        { name: "Dr. Watson", country: "United Kingdom", score: 48, time: 1800 },
-        { name: "Prof. Chen", country: "China", score: 47, time: 1850 },
-        { name: "Dr. Silva", country: "Brazil", score: 46, time: 1900 },
-        { name: "Prof. Schmidt", country: "Germany", score: 45, time: 1950 },
-        { name: "Dr. Dubois", country: "France", score: 44, time: 2000 },
-        { name: "Prof. Tanaka", country: "Japan", score: 43, time: 2050 },
-        { name: "Dr. Patel", country: "India", score: 42, time: 2100 },
-        { name: "Prof. García", country: "Spain", score: 41, time: 2150 },
-        { name: "Dr. Miller", country: "USA", score: 40, time: 2200 },
-        { name: "Prof. Kim", country: "South Korea", score: 39, time: 2250 }
-      ];
-      
-      displayRows = [...topPlayers, ...bots.slice(0, botsNeeded)];
-    } else {
-      displayRows = topPlayers;
+    // Combine real players with bots if needed
+    let displayRows = [...players];
+    if (displayRows.length < 10) {
+      const botsNeeded = 10 - displayRows.length;
+      displayRows = [...displayRows, ...simulatedUsers.slice(0, botsNeeded)];
     }
 
-    // Render top rows
-    displayRows.forEach((player, index) => {
+    // Sort combined array by score (desc) and time (asc)
+    displayRows.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.time - b.time;
+    });
+
+    // Format time function (converts seconds to HH:MM:SS)
+    const formatTime = (seconds) => {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // Show top 10
+    displayRows.slice(0, 10).forEach((player, index) => {
       const tr = document.createElement("tr");
       tr.className = "hover:bg-gray-50";
-      if (player.name === currentName && player.country === currentCountry) {
+      
+      // Highlight if it's the current user
+      const isCurrentUser = player.name === localStorage.getItem("lastName") &&
+                          player.country === localStorage.getItem("lastCountry");
+      
+      if (isCurrentUser) {
         tr.className += " bg-yellow-50 font-semibold";
       }
+
+      // Add bot indicator for bot players
+      const isBot = player.name.startsWith("Bot");
+      const name = isBot ? `🤖 ${player.name}` : player.name;
+
       tr.innerHTML = `
         <td class="px-3 py-2 text-center">${index + 1}</td>
         <td class="px-3 py-2">
           <div class="flex items-center gap-2">
-            <span>${player.name}</span>
+            <span>${name}</span>
           </div>
         </td>
         <td class="px-3 py-2">${player.country}</td>
         <td class="px-3 py-2 text-center">${player.score}</td>
-        <td class="px-3 py-2 text-center text-gray-600">
-          ${Math.floor(player.time / 60)}:${(player.time % 60).toString().padStart(2, '0')}
-        </td>
+        <td class="px-3 py-2 text-center text-gray-600">${formatTime(player.time)}</td>
       `;
       tbody.appendChild(tr);
     });
 
-    // Find current user's position if not in top 10
-    const userPosition = players.findIndex(p => 
+    // Show current user's position if not in top 10
+    const currentName = localStorage.getItem("lastName");
+    const currentCountry = localStorage.getItem("lastCountry");
+    const userPosition = displayRows.findIndex(p => 
       p.name === currentName && p.country === currentCountry
     );
 
     if (userPosition >= 10) {
-      // Add separator
       const separator = document.createElement("tr");
       separator.innerHTML = `
         <td colspan="5" class="text-center py-2 text-gray-400 border-t border-b">
@@ -267,7 +283,6 @@ async function loadRanking() {
       `;
       tbody.appendChild(separator);
 
-      // Add user's row
       const userRow = document.createElement("tr");
       userRow.className = "bg-yellow-50 font-semibold";
       userRow.innerHTML = `
@@ -278,10 +293,8 @@ async function loadRanking() {
           </div>
         </td>
         <td class="px-3 py-2">${currentCountry}</td>
-        <td class="px-3 py-2 text-center">${players[userPosition].score}</td>
-        <td class="px-3 py-2 text-center text-gray-600">
-          ${Math.floor(players[userPosition].time / 60)}:${(players[userPosition].time % 60).toString().padStart(2, '0')}
-        </td>
+        <td class="px-3 py-2 text-center">${displayRows[userPosition].score}</td>
+        <td class="px-3 py-2 text-center text-gray-600">${formatTime(displayRows[userPosition].time)}</td>
       `;
       tbody.appendChild(userRow);
     }
